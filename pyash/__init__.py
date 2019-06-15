@@ -6,69 +6,60 @@ BE_SAFE = False
 class LazyInvocation():
     """Class returned when a shell application is 'run'. This allows us to do piping etc. through lazy execution of the program."""
     def __init__(self, executable_path, args):
+        # TODO make private
         self.executable_path = executable_path
         self.args = args
-        
-        # We'll set this property once we actually do the evaluation
-        self.have_run = False
 
         # These will get setup on the fly
         self.stdin = None
         self.stdout = None
+        self.process = None
 
     def __str__(self):
         """Returns the application's output, executing the application if not done so already."""
         
-        # We want a string back so we'll need to setup a pipe we can read from to get the data
-        (read_pipe, self.stdout) = os.pipe()
+        self.stdout = subprocess.PIPE
 
-        self._execute()
+        self._start_execute()
+        self.process.wait()
 
-        with open(read_pipe, "rb") as read_file:
-            return read_file.read().decode("utf-8")
+        return self.process.communicate()[0].decode("utf-8")
 
     # TODO >> and << operators
 
     def __gt__(self, target):
         """Overrides the '>' to write the output to a file."""
-        self.stdout = open(target, "w")
-        self._execute()
+        with open(target, "w") as outfile:
+            self.stdout = outfile
+            self._start_execute()
+            self.process.wait()
+
         return self
     
     def __lt__(self, target):
         """Overrides the '<' to read in from a file."""
         # TODO opening a file and never closing it!
+        # TODO this should operate on the first process in the chain, not the one it's actually operating on
         self.stdin = open(target, "r")
         return self
 
     def __or__(self, target):
         """Overrides the '|' operator to do piping."""
         
-        # Create an OS pipe (returns (read, write) fiel descriptors) and set the processes to use those
-        # TODO do we need to dispose of all these file descriptors? :|
-        (target.stdin, self.stdout) = os.pipe()
+        self.stdout = subprocess.PIPE
+        self._start_execute()
+        target.stdin = self.process.stdout
 
         return target
 
-    def _execute(self):
-        """Ensures that the application has been run at some point and that an output is available."""
-        if not self.have_run:
-            process_string = self.executable_path + " " + " ".join(self.args)
+    def _start_execute(self):
+        process_string = self.executable_path + " " + " ".join(self.args)
 
-            with subprocess.Popen(process_string, stdin=self.stdin, stdout=self.stdout, close_fds=True) as process:
-                # TODO (From docs) Warning: This will deadlock when using stdout=PIPE and/or stderr=PIPE and the child process generates enough output to a pipe such that it blocks waiting for the OS pipe buffer to accept more data. Use communicate() to avoid that.
-                process.wait()
-
-                if process.returncode != 0:
-                    raise ProcessError(f"Process exited with a non-zero exit code ({process.returncode}).")
-
-            self.have_run = True
-        else:
-            raise ProcessError(f"Cannot rerun a process already invoked.")
+        # TODO sort stderr
+        self.process = subprocess.Popen(process_string, stdin=self.stdin, stdout=self.stdout, close_fds=True)
 
     def run(self):
         """Force runs the application in case you need to explicitly run it."""
-        self._execute()
         return self.__str__()
 
 class ProcessError(Exception):

@@ -1,10 +1,10 @@
-from pyash import echo
+from pyash import cat, grep, rm
 
-print(echo("Hello World!"))
+# You can pipe from one process to another and out to file...
+cat(".gitignore") | grep("env") > "out.txt"
 
-#echo() < "in.txt"
-#echo("I'm writing text!") > "out.txt"
+# ...and even pipe from files just as you would in bash...
+print(cat() < "out.txt")
 
-#print()
-
-#print(echo("Some text") | echo())
+# ...though if you just need to run an application you'll need to tell it that!
+rm("out.txt").run()
