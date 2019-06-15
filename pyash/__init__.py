@@ -1,6 +1,6 @@
-import os, glob, subprocess
+import os, glob, subprocess, io
 
-# Setting this true will ensure we don't overwrite any builtins like 'print' by appending 'pysh_'
+# Setting this true will ensure we don't overwrite any builtins like 'print' by appending 'pyash_'
 BE_SAFE = False
 
 class LazyInvocation():
@@ -8,51 +8,68 @@ class LazyInvocation():
     def __init__(self, executable_path, args):
         self.executable_path = executable_path
         self.args = args
-        # We'll get this property once we actually do the evaluation
-        self.output = None
+        
+        # We'll set this property once we actually do the evaluation
+        self.have_run = False
+
+        # These will get setup on the fly
+        self.stdin = None
+        self.stdout = None
 
     def __str__(self):
         """Returns the application's output, executing the application if not done so already."""
-        _internal_print("Converting to string")
-        self._execute_if_not_done_so_already()
-        return self.output
+        
+        # We want a string back so we'll need to setup a pipe we can read from to get the data
+        (read_pipe, self.stdout) = os.pipe()
+
+        self._execute()
+
+        with open(read_pipe, "rb") as read_file:
+            return read_file.read().decode("utf-8")
+
+    # TODO >> and << operators
 
     def __gt__(self, target):
         """Overrides the '>' to write the output to a file."""
-        self._execute_if_not_done_so_already()
-        _internal_print(f"Writing '{self.output}' to file '{target}.'")
+        self.stdout = open(target, "w")
+        self._execute()
         return self
     
     def __lt__(self, target):
         """Overrides the '<' to read in from a file."""
-        self._execute_if_not_done_so_already()
-        _internal_print(f"Reading from file '{target}.'")
+        # TODO opening a file and never closing it!
+        self.stdin = open(target, "r")
         return self
 
     def __or__(self, target):
         """Overrides the '|' operator to do piping."""
-        self._execute_if_not_done_so_already()
-        _internal_print(f"Piping '{self.output}'!")
-        return self
+        
+        # Create an OS pipe (returns (read, write) fiel descriptors) and set the processes to use those
+        # TODO do we need to dispose of all these file descriptors? :|
+        (target.stdin, self.stdout) = os.pipe()
 
-    def _execute_if_not_done_so_already(self):
+        return target
+
+    def _execute(self):
         """Ensures that the application has been run at some point and that an output is available."""
-        if self.output == None:
+        if not self.have_run:
             process_string = self.executable_path + " " + " ".join(self.args)
-            _internal_print(f"Executing '{process_string}'.")
-            
-            with subprocess.Popen(process_string, stdout=subprocess.PIPE) as process:
-                (self.output, _) = process.communicate()
+
+            with subprocess.Popen(process_string, stdin=self.stdin, stdout=self.stdout, close_fds=True) as process:
+                # TODO (From docs) Warning: This will deadlock when using stdout=PIPE and/or stderr=PIPE and the child process generates enough output to a pipe such that it blocks waiting for the OS pipe buffer to accept more data. Use communicate() to avoid that.
+                process.wait()
 
                 if process.returncode != 0:
                     raise ProcessError(f"Process exited with a non-zero exit code ({process.returncode}).")
 
-            self.output = self.output.decode("utf-8")
+            self.have_run = True
+        else:
+            raise ProcessError(f"Cannot rerun a process already invoked.")
 
     def run(self):
         """Force runs the application in case you need to explicitly run it."""
-        self._execute_if_not_done_so_already()
-        return self.output
+        self._execute()
+        return self.__str__()
 
 class ProcessError(Exception):
     """Exception raised when a process exits with a non-zero exit code."""
@@ -78,7 +95,7 @@ for path in os.environ["PATH"].split(";"):
         name = os.path.splitext(os.path.basename(executable_path))[0]
 
         if (BE_SAFE and name in __builtins__.keys()):
-            name = "pysh_" + name
+            name = "pyash_" + name
 
         escaped_executable_path = "\"" + executable_path.replace("\"","\\\"") + "\""
 
