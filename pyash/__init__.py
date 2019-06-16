@@ -1,4 +1,4 @@
-import os, glob, subprocess, io
+import os, glob, subprocess, sys
 
 # Setting this true will ensure we don't overwrite any builtins like 'print' by appending 'pyash_'
 BE_SAFE = False
@@ -25,8 +25,6 @@ class LazyInvocation():
 
         return self.process.communicate()[0].decode("utf-8")
 
-    # TODO >> and << operators
-
     def __gt__(self, target):
         """Overrides the '>' to write the output to a file."""
         with open(target, "w") as outfile:
@@ -43,6 +41,15 @@ class LazyInvocation():
         self.stdin = open(target, "r")
         return self
 
+    def __rshift__(self, target):
+        """Overrides the '>' to write the output to a file."""
+        with open(target, "wa") as outfile:
+            self.stdout = outfile
+            self._start_execute()
+            self.process.wait()
+
+        return self
+
     def __or__(self, target):
         """Overrides the '|' operator to do piping."""
         
@@ -55,8 +62,7 @@ class LazyInvocation():
     def _start_execute(self):
         process_string = self.executable_path + " " + " ".join(self.args)
 
-        # TODO sort stderr
-        self.process = subprocess.Popen(process_string, stdin=self.stdin, stdout=self.stdout, close_fds=True)
+        self.process = subprocess.Popen(process_string, stdin=self.stdin, stdout=self.stdout, stderr=sys.stderr, close_fds=True)
 
     def run(self):
         """Force runs the application in case you need to explicitly run it."""
