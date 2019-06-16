@@ -13,6 +13,7 @@ class LazyInvocation():
         self._stdin = None
         self._stdout = None
         self._process = None
+        self._previous = None
 
     def __str__(self):
         """Returns the application's output, executing the application if not done so already."""
@@ -35,9 +36,13 @@ class LazyInvocation():
     
     def __lt__(self, target):
         """Overrides the '<' to read in from a file."""
-        # TODO opening a file and never closing it!
-        # TODO this should operate on the first process in the chain, not the one it's actually operating on
-        self._stdin = open(target, "r")
+        # We need to pipe into the first in the chain so recurse through
+        if self._previous != None:
+            self._previous.__lt__()
+        else:
+            # TODO opening a file and never closing it!
+            self._stdin = open(target, "r")
+
         return self
 
     def __rshift__(self, target):
@@ -65,7 +70,8 @@ class LazyInvocation():
 
     def run(self):
         """Force runs the application in case you need to explicitly run it."""
-        return self.__str__()
+        self._start_execute()
+        self._process.wait()
 
 class ProcessError(Exception):
     """Exception raised when a process exits with a non-zero exit code."""

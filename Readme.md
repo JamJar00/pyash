@@ -42,3 +42,8 @@ echo("Flutter! Flutter! Flutter!") >> butterfly.txt
 ```
 
 Note that when you start piping a program's output somewhere else it begins execution, so the 2nd and 3rd examples don't need you to call `run()`.
+
+If you need to both pipe in from a file and out from a file you need to place parentheses around the pipe in, this just seems to be a limitation of our abuse of Python.
+```
+(cat() | grep("env") < ".gitignore") > "myfile.txt"
+```
