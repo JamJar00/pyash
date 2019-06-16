@@ -6,31 +6,30 @@ BE_SAFE = False
 class LazyInvocation():
     """Class returned when a shell application is 'run'. This allows us to do piping etc. through lazy execution of the program."""
     def __init__(self, executable_path, args):
-        # TODO make private
-        self.executable_path = executable_path
-        self.args = args
+        self._executable_path = executable_path
+        self._args = args
 
         # These will get setup on the fly
-        self.stdin = None
-        self.stdout = None
-        self.process = None
+        self._stdin = None
+        self._stdout = None
+        self._process = None
 
     def __str__(self):
         """Returns the application's output, executing the application if not done so already."""
         
-        self.stdout = subprocess.PIPE
+        self._stdout = subprocess.PIPE
 
         self._start_execute()
-        self.process.wait()
+        self._process.wait()
 
-        return self.process.communicate()[0].decode("utf-8")
+        return self._process.communicate()[0].decode("utf-8")
 
     def __gt__(self, target):
         """Overrides the '>' to write the output to a file."""
         with open(target, "w") as outfile:
-            self.stdout = outfile
+            self._stdout = outfile
             self._start_execute()
-            self.process.wait()
+            self._process.wait()
 
         return self
     
@@ -38,31 +37,31 @@ class LazyInvocation():
         """Overrides the '<' to read in from a file."""
         # TODO opening a file and never closing it!
         # TODO this should operate on the first process in the chain, not the one it's actually operating on
-        self.stdin = open(target, "r")
+        self._stdin = open(target, "r")
         return self
 
     def __rshift__(self, target):
         """Overrides the '>' to write the output to a file."""
-        with open(target, "wa") as outfile:
-            self.stdout = outfile
+        with open(target, "a") as outfile:
+            self._stdout = outfile
             self._start_execute()
-            self.process.wait()
+            self._process.wait()
 
         return self
 
     def __or__(self, target):
         """Overrides the '|' operator to do piping."""
         
-        self.stdout = subprocess.PIPE
+        self._stdout = subprocess.PIPE
         self._start_execute()
-        target.stdin = self.process.stdout
+        target._stdin = self._process.stdout
 
         return target
 
     def _start_execute(self):
-        process_string = self.executable_path + " " + " ".join(self.args)
+        process_string = self._executable_path + " " + " ".join(self._args)
 
-        self.process = subprocess.Popen(process_string, stdin=self.stdin, stdout=self.stdout, stderr=sys.stderr, close_fds=True)
+        self._process = subprocess.Popen(process_string, stdin=self._stdin, stdout=self._stdout, stderr=sys.stderr, close_fds=True)
 
     def run(self):
         """Force runs the application in case you need to explicitly run it."""
