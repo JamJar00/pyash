@@ -1,4 +1,6 @@
 # Pyash
+[![PyPI version](https://badge.fury.io/py/pyash.svg)](https://badge.fury.io/py/pyash)
+
 Hate shell scripting? Love Python! Meet the horrible Frankenstein of the two!
 
 Pyash takes the best part of shell scripting, the ability to stream data through great chains of shell programs, and adds that ability to Python. In the process it retains the same familiar syntax but in a more Pythonic form!
@@ -6,8 +8,6 @@ Pyash takes the best part of shell scripting, the ability to stream data through
 from pyash import cat, grep
 cat(".gitignore") | grep("env") > "out.txt"
 ```
-
-[Find it on PyPI!](https://pypi.org/project/pyash-JamJar00/0.1.0/)
 
 ## Importing Shell Programs
 Importing shell programs is as easy as

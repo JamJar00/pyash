@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="pyash-JamJar00",
+    name="pyash",
     version="0.1.0",
     author="Jamie Read",
     author_email="jamie@darkriftnetworking.com",
