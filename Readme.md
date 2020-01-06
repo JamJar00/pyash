@@ -7,6 +7,8 @@ from pyash import cat, grep
 cat(".gitignore") | grep("env") > "out.txt"
 ```
 
+[Find it on PyPI!](https://pypi.org/project/pyash-JamJar00/0.1.0/)
+
 ## Importing Shell Programs
 Importing shell programs is as easy as
 ```python
